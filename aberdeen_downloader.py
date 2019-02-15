@@ -43,7 +43,22 @@ bp_list=['Calving_Ease_DIR',
             'Retail_Beef_Yield',
             'IMF']
 
-index_list=['Index_Value','Breed_average']           
+index_list=['Index_Value','Breed_average']
+
+def saveToDB(dataDict):
+    columns=''
+    values=''
+    for key, value in dataDict.items():
+        columns=columns+key+","
+        values =values+"'"+value+"',"
+    columns=columns[:-1]
+    values=values[:-1]
+    sql="insert into animals ("+columns+") values("+values+")"
+    print(sql)
+
+
+    
+
 def extractValues(link):
     dataDict=dict()
     link=base_url+link
@@ -97,7 +112,7 @@ def extractValues(link):
                 si_val='-'
             dataDict[ti_key]=ti_val
             dataDict[si_key]=si_val
-    print(dataDict)
+    saveToDB(dataDict)
         
 def showIndexValues(link):
     link=base_url+link
