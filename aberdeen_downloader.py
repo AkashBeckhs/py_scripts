@@ -1,6 +1,8 @@
 import requests
 import numpy as np 
 import lxml.html as lh
+import pandas as pd
+import pymysql
 
 main_url='http://abri.une.edu.au/online/cgi-bin/i4.dll?1=3E37202F&2=2828&3=56&5=2B3C2B3C3A'
 base_url='http://abri.une.edu.au/online/cgi-bin/'
@@ -15,7 +17,8 @@ xPathDict={"next_button":"//a[contains(text(),'Next')]",
            "ebv2":"//table[@class='TablesEBVBox'][1]/tr[3]/td",
            "t_index":"//table[@class='TablesEBVBox'][2]/tr[3]/td",
            "s_index":"//table[@class='TablesEBVBox'][2]/tr[4]/td",
-           "second_table":"//table[@class='TablesEBVBox'][2]"
+           "second_table":"//table[@class='TablesEBVBox'][2]",
+           "stats":"//center/strong[contains(text(),'Statistics:')]/parent::*"
            }
 
 type_list=['Identifier',
@@ -24,7 +27,7 @@ type_list=['Identifier',
             'Registration Status',
             'Breeder',
             'Current Owner',
-            'HerdBook Volume No.',
+            'HerdBook Volume No',
             'National ID']        
 
 bp_list=['Calving_Ease_DIR',
@@ -44,6 +47,21 @@ bp_list=['Calving_Ease_DIR',
             'IMF']
 
 index_list=['Index_Value','Breed_average']
+def initializeDB():
+    db = pymysql.connect(
+                    host='localhost',
+                    user='root',
+                    password='Lemondesk@123',
+                    db='animal',
+                    charset='utf8mb4',
+                    port=3306,
+                    cursorclass=pymysql.cursors.DictCursor,
+                    autocommit=True
+                )
+    cursor = db.cursor()
+
+    return [db, cursor]
+
 
 def saveToDB(dataDict):
     columns=''
@@ -55,6 +73,12 @@ def saveToDB(dataDict):
     values=values[:-1]
     sql="insert into animals ("+columns+") values("+values+")"
     print(sql)
+    try:
+        cursor.execute(sql)
+        db.commit()
+    except Exception as e: 
+        print(e)
+        
 
 
     
@@ -71,7 +95,7 @@ def extractValues(link):
         if(element!=None and len(element)>0):
             element=element[0]
             key=e.replace(" ","_")
-            val=element.text_content().strip()
+            val=element.text_content().strip().replace("'","\'")
             dataDict[key]=val    
     for i in range(1,16):
         ebv1_list=lxml_tree.xpath(xPathDict['ebv1'])
@@ -81,15 +105,15 @@ def extractValues(link):
         eb2_key='ebv2_'+bp_list[i-1]
         acc_key='acc_'+bp_list[i-1]
         try:
-            ebv1_val=ebv1_list[i].text_content().strip()  
+            ebv1_val=ebv1_list[i].text_content().strip().replace("'","\'")  
         except:
             ebv1_val='-'
         try:
-            ebv2_val=ebv2_list[i].text_content().strip()
+            ebv2_val=ebv2_list[i].text_content().strip().replace("'","\'")
         except:
             ebv2_val='-'
         try:
-            acc_val=acc_list[i].text_content().strip()
+            acc_val=acc_list[i].text_content().strip().replace("'","\'")
         except:
             acc_val='-'
         dataDict[eb1_key]=ebv1_val
@@ -103,15 +127,35 @@ def extractValues(link):
             ti_key='TI_'+index_list[j-1]
             si_key='SI_'+index_list[j-1]
             try:
-                ti_val=t_index_list[j].text_content().strip()
+                ti_val=t_index_list[j].text_content().strip().replace("'","\'")
             except:
                 ti_val='-'
             try:
-                si_val=s_index_list[j].text_content().strip()
+                si_val=s_index_list[j].text_content().strip().replace("'","\'")
             except:
                 si_val='-'
             dataDict[ti_key]=ti_val
             dataDict[si_key]=si_val
+    stat=lxml_tree.xpath(xPathDict['stats'])
+    if(len(stat)>0):
+        stat=stat[0].text_content()        
+        s2 = "Statistics:"
+        stat= stat[stat.index(s2) + len(s2):]
+        print("-------->>"+stat)
+        stat=stat.replace("Statistics:","")
+        l=stat.split(',')
+        leng=len(l)
+        for i in range(0,leng):
+            txt=l[i]
+            txt=txt.split(":")
+            try:
+                key=txt[0].strip().replace(' ','_')
+                val=txt[1].strip().replace("'","\'")
+                dataDict[key]=val
+            except:
+                print('err')
+
+            
     saveToDB(dataDict)
         
 def showIndexValues(link):
@@ -120,9 +164,11 @@ def showIndexValues(link):
     pageData=resp.text
     lxml_tree = lh.fromstring(pageData)
     print(link)
-    a_tag=lxml_tree.xpath(xPathDict["index_values"])[0]
-    link=a_tag.get('href')
-    extractValues(link)
+    a_tag=lxml_tree.xpath(xPathDict["index_values"])
+    if(len(a_tag)>0):
+     a_tag=a_tag[0]   
+     link=a_tag.get('href')
+     extractValues(link)
 
     
 
@@ -170,7 +216,7 @@ def main():
             nextPageLink=str(base_url)+str(nextBtn.get('href'))
             pageData=requests.get(nextPageLink).text
 
-
+db, cursor = initializeDB()
         
 if __name__== '__main__':
     main()
