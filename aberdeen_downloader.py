@@ -170,11 +170,11 @@ def showIndexValues(link,dataDict):
      extractValues(link,dataDict)
 
     
-c=0
+
 def iterateAnimalListing(link):
     dataDict=dict()  
     link=base_url+link
-    
+    c=0
     while True:
         resp=requests.get(link)
         pageData=resp.text
