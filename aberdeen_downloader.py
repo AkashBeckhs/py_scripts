@@ -3,7 +3,7 @@ import numpy as np
 import lxml.html as lh
 import pandas as pd
 import pymysql
-
+completedList=[]
 main_url='http://abri.une.edu.au/online/cgi-bin/i4.dll?1=3E37202F&2=2828&3=56&5=2B3C2B3C3A'
 base_url='http://abri.une.edu.au/online/cgi-bin/'
 xPathDict={"next_button":"//a[contains(text(),'Next')]",
@@ -72,7 +72,7 @@ def saveToDB(dataDict):
     columns=columns[:-1]
     values=values[:-1]
     sql="insert into animals ("+columns+") values("+values+")"
-    print(sql)
+    #print(sql)
     try:
         cursor.execute(sql)
         db.commit()
@@ -83,8 +83,8 @@ def saveToDB(dataDict):
 
     
 
-def extractValues(link):
-    dataDict=dict()
+def extractValues(link,dataDict):
+    
     link=base_url+link
     resp=requests.get(link)
     pageData=resp.text
@@ -158,32 +158,43 @@ def extractValues(link):
             
     saveToDB(dataDict)
         
-def showIndexValues(link):
+def showIndexValues(link,dataDict):
     link=base_url+link
     resp=requests.get(link)
     pageData=resp.text
     lxml_tree = lh.fromstring(pageData)
-    print(link)
     a_tag=lxml_tree.xpath(xPathDict["index_values"])
     if(len(a_tag)>0):
      a_tag=a_tag[0]   
      link=a_tag.get('href')
-     extractValues(link)
+     extractValues(link,dataDict)
 
     
-
+c=0
 def iterateAnimalListing(link):
+    dataDict=dict()  
     link=base_url+link
+    
     while True:
         resp=requests.get(link)
         pageData=resp.text
         lxml_tree = lh.fromstring(pageData)
         anlimaList=lxml_tree.xpath(xPathDict['animal_listing'])
-        for animal in anlimaList:
-            link=animal.get('href')
-            showIndexValues(link)
+        
+        for animal in anlimaList: 
+            link=animal.get('href').strip()
+            tLink=link[:link.rfind('=')]  
+            print("------------------ \n Temp Link : "+tLink)
+            print("Actual Link : "+link+"\n--------------------------")            
+            if(tLink not in completedList):
+                dataDict['link']=tLink    
+                showIndexValues(link,dataDict)
+            else:
+                print("Skipping --------"+link)
         nextBtn=lxml_tree.xpath(xPathDict['next_button'])
         if(len(nextBtn)==0):
+            c=c+1
+            print('breaking animal'+str(c))
             break
         else:
             link=base_url+nextBtn[0].get('href')
@@ -198,21 +209,33 @@ def extractDataFromMember(link):
     link=aTag.get('href')
     iterateAnimalListing(link)
 
+def initializeComletedList():
+    qr="select * from animals"
+    cursor.execute(qr)
+    for row in cursor:
+        completedList.append(row['link'])
+    
+    
 
 
 def main():
+    initializeComletedList()
     resp=requests.get(main_url)
     pageData=resp.text
+    print(pageData)
     while True:
         lxml_tree = lh.fromstring(pageData)
         members=lxml_tree.xpath(xPathDict['membership_name'])
         for member in members:
             href=member.get('href')
             extractDataFromMember(href)
-        nextBtn=lxml_tree.xpath(xPathDict['next_button'])[0]
+        nextBtn=lxml_tree.xpath(xPathDict['next_button'])
         if(len(nextBtn)==0):
+            print('Breaking main')
             break
         else:
+            print('Else main')
+            nextBtn=lxml_tree.xpath(xPathDict['next_button'])[0]
             nextPageLink=str(base_url)+str(nextBtn.get('href'))
             pageData=requests.get(nextPageLink).text
 
