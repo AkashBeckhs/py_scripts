@@ -19,9 +19,10 @@ priceRe="\"prixPromo\":\"(.*?)\""
 
 
 headerName='-----NAME-------'
-headerPrice='--------PRICE---------'  
+#headerPrice=str(datetime.date(datetime.now()))
+headerPrice="05/15/2019"
 
-
+proxies ={"http":"http://10.135.0.26:8080/","https":"http://10.135.0.26:8080/"}
 
 url_dict={
     "site_1_2_Url":"http://mobile.free.fr/",
@@ -47,7 +48,7 @@ def scrapeSite1():
     #part1
     print("1-1 Started")
     s=requests.session()
-    html=s.get(url_dict['site_1_1_Url']).text
+    html=s.get(url_dict['site_1_1_Url'],proxies=proxies).text
     tree=le.fromstring(html)
     names=tree.xpath(xPathDict['name'])
     wd=tree.xpath(xPathDict['w-div'])
@@ -76,7 +77,7 @@ def scrapeSite1():
     #Part 2 of site 1
     print("1-2 Started")
     s=requests.session()
-    html=s.get(url_dict['site_1_2_Url']).text
+    html=s.get(url_dict['site_1_2_Url'],proxies=proxies).text
     tree=le.fromstring(html)
     dataDivs=tree.xpath("//div[@class='grid-c cell-top forfait']")
     for div in dataDivs:
@@ -96,7 +97,7 @@ def scrapeSite1():
 def scrapeSite2():
     print("2-1 Started")
     s=requests.session()
-    html=s.get(url_dict['site_2_1_Url']).text
+    html=s.get(url_dict['site_2_1_Url'],proxies=proxies).text
     tree=le.fromstring(html)
     divs=tree.xpath("//div[@class='overviewCol__inner']")
     for div in divs:
@@ -110,11 +111,10 @@ def scrapeSite2():
         data[headerPrice]=price
         dataList.append(data)
     print("2-1 Completed")
-    
     #part 2 
     print("2-2 Started")
     s=requests.session()
-    html=s.get(url_dict['site_2_2_Url']).text
+    html=s.get(url_dict['site_2_2_Url'],proxies=proxies).text
     tree=le.fromstring(html)
     divs=tree.xpath("//div[@class='overviewCol__inner']")
     for div in divs:
@@ -134,7 +134,7 @@ def scrapeSite3():
     #PART 1
     print("3-1 Started")
     s=requests.session()
-    html=s.get(url_dict['site_3_1_Url']).text
+    html=s.get(url_dict['site_3_1_Url'],proxies=proxies).text
     tree=le.fromstring(html)
     divs=tree.xpath("//div[contains(@class,'column is-half-tablet is-3-desktop')]")
     for div in divs:
@@ -164,7 +164,7 @@ def scrapeSite3():
     #PART 2
     print("3-2 Started")
     s=requests.session()
-    html=s.get(url_dict['site_3_2_Url']).text
+    html=s.get(url_dict['site_3_2_Url'],proxies=proxies).text
     tree=le.fromstring(html)
     divs=tree.xpath("//div[contains(@class,'offers')]/div[contains(@class,'offer')]")
     for div in divs:
@@ -184,7 +184,7 @@ def scrapeSite3():
 def scrapeSite4():
     print("4-1 Started")
     s=requests.session()
-    html=s.get(url_dict['site_4_1_Url']).text
+    html=s.get(url_dict['site_4_1_Url'],proxies=proxies).text
     tree=le.fromstring(html)
     divs=tree.xpath("//div[@class='template header-crem']")
     for div in divs:
@@ -201,7 +201,7 @@ def scrapeSite4():
     #PART 2
     print("4-2 Started")
     s=requests.session()
-    html=s.get(url_dict['site_4_2_Url']).text
+    html=s.get(url_dict['site_4_2_Url'],proxies=proxies).text
     names=re.findall(nameRe,html)
     prices=re.findall(priceRe,html)
     if(len(names)==len(prices)):
@@ -215,9 +215,9 @@ def scrapeSite4():
       
 def init():
     try:
-        dat=datetime.date(datetime.now())
-        di={headerName:dat,headerPrice:"----"}
-        dataList.append(di)
+        #dat=datetime.date(datetime.now())
+        #di={headerName:dat,headerPrice:"----"}
+        #dataList.append(di)
         di=currDir+"/data"
         os.mkdir(di)
     except:
@@ -232,8 +232,39 @@ def writeListToCsv(toCSV):
         with open(fileName, "r") as f:
             reader = csv.DictReader(f)
             oldData=list(reader)
+    
     #appending old data with new Data
-    toCSV=toCSV+oldData        
+    length=0
+    if(len(oldData)>0):
+        if(len(toCSV)>len(oldData)):
+            length=len(toCSV)
+            for i in range(length):
+                try:
+                    old=oldData[i]
+                    for key,val in old.items():
+                        dataList[i][key]=val
+                except Exception as e:
+                    print(e)
+        elif(len(toCSV)<len(oldData)):
+            length=len(oldData)
+            for i in range(length):
+                try:
+                    old=oldData[i]
+                    for key,val in old.items():
+                        dataList[i][key]=val
+                except Exception as e:
+                        dataList.append(old)
+        else:
+            length=len(toCSV)
+            for i in range(length):
+                try:
+                    old=oldData[i]
+                    for key,val in old.items():
+                        dataList[i][key]=val
+                except Exception as e:
+                    print(e)
+        
+                
     with open(fileName, 'w') as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
