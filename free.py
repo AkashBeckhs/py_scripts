@@ -7,6 +7,10 @@ from time import sleep
 import csv
 from datetime import datetime
 
+#evert website has two parts 
+#left and right denotes left and right part of the price 99.26 left-99 right-26
+
+
 def RemoveNonAscii(text):
     res=''.join([i if ord(i) < 128 else ' ' for i in text]).strip()
     if(res==''):
@@ -16,11 +20,10 @@ def RemoveNonAscii(text):
 nameRe="\"nom\":\"(.*?)\","
 priceRe="\"prixPromo\":\"(.*?)\""
 
-
-
 headerName='-----NAME-------'
-#headerPrice=str(datetime.date(datetime.now()))
-headerPrice="05/15/2019"
+#header price is now data as header in csv .
+headerPrice=str(datetime.date(datetime.now()))
+
 
 proxies ={"http":"http://10.135.0.26:8080/","https":"http://10.135.0.26:8080/"}
 
@@ -43,6 +46,52 @@ xPathDict={"name":"//h5/div/div[@class='markdown-p']",\
 currDir = os.path.dirname(os.path.realpath(__file__))
 dataList=[]
 
+def scrapeSite1New():
+    #part 1
+    print("1-1 Started")
+    s=requests.session()
+    html=s.get(url_dict['site_1_1_Url'],proxies=proxies).text
+    tree=le.fromstring(html)
+    divs=tree.xpath("//div[@class='sc-gPWkxV hyBNKq']")
+    for div in divs:
+        name=div.xpath(".//div[@class='markdown-p']")[0].text.strip()
+        left=div.xpath(".//span[@class='sc-kAzzGY hqcLUv']")
+        right=div.xpath(".//span[@class='sc-fjdhpX jZqwup']/span[@class='sc-jzJRlG eLwrik']/span[@class='sc-kgoBCf kVSTZj']")
+        if(len(right)>=0 and len(left)>0):
+            price=left[0].text.strip()+"."+right[0].text.strip()
+        elif(len(left)>0 and len(right)<=0):
+            price=left[0].text.strip()+".0"
+        else:
+            price='0.0'
+        data=dict()
+        data[headerName]=name
+        data[headerPrice]=price
+        dataList.append(data)
+    print("1-1 ended")
+    #part 2
+    print("1-2 Started")
+    s=requests.session()
+    html=s.get(url_dict['site_1_2_Url'],proxies=proxies).text
+    tree=le.fromstring(html)
+    dataDivs=tree.xpath("//div[@class='grid-c cell-top forfait']")
+    for div in dataDivs:
+        name=div.xpath("./h1[@class='description']")
+        name2=div.xpath("./h1[@class='description']/span[1]")
+        left=div.xpath("./div[contains(@class,'prix-mensuel')]/span[@class='prix prix-red prix-main']")
+        right=div.xpath("./div[contains(@class,'prix-mensuel')]/span[@class='prix-other red']/span[@class='prix prix-red prix-cent']")
+        price=RemoveNonAscii(left[0].text.strip())+"."+RemoveNonAscii(right[0].text)
+        #print(name[0].text+" "+name2[0].text+" "+price)
+        data=dict()
+        data[headerName]=str(name[0].text+" "+name2[0].text).strip()
+        data[headerPrice]=price
+        dataList.append(data)
+    print("1-2 Completed")
+    
+        
+
+            
+        
+        
 
 def scrapeSite1():
     #part1
@@ -93,7 +142,6 @@ def scrapeSite1():
         dataList.append(data)
     print("1-2 Completed")
 
-
 def scrapeSite2():
     print("2-1 Started")
     s=requests.session()
@@ -129,7 +177,6 @@ def scrapeSite2():
         dataList.append(data)
     print("2-2 Completed")
     
-
 def scrapeSite3():
     #PART 1
     print("3-1 Started")
@@ -149,7 +196,7 @@ def scrapeSite3():
         except:
          price="0.0"
         if(isinstance(name,str)):
-          #print(name+" "+price)
+          #print(name+" "+price)  # if name is just String on page
           data=dict()
           data[headerName]=name
           data[headerPrice]=price
@@ -157,7 +204,7 @@ def scrapeSite3():
         else:
            #print(name[0].text+" "+price)
            data=dict()
-           data[headerName]=name[0].text
+           data[headerName]=name[0].text # if name is inside any HTML tag.
            data[headerPrice]=price
            dataList.append(data) 
     print("3-1 Completed")
@@ -233,7 +280,7 @@ def writeListToCsv(toCSV):
             reader = csv.DictReader(f)
             oldData=list(reader)
     
-    #appending old data with new Data
+    #appending old data extracted from CSV with new Data 
     length=0
     if(len(oldData)>0):
         if(len(toCSV)>len(oldData)):
@@ -263,6 +310,7 @@ def writeListToCsv(toCSV):
                         dataList[i][key]=val
                 except Exception as e:
                     print(e)
+
         
                 
     with open(fileName, 'w') as output_file:
@@ -272,7 +320,7 @@ def writeListToCsv(toCSV):
 
 def main():
     init()
-    scrapeSite1()
+    scrapeSite1New()
     scrapeSite2()
     scrapeSite3()
     scrapeSite4()
