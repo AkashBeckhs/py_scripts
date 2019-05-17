@@ -1,11 +1,12 @@
-import lxml.html as le
-from lxml import etree
-import re
-import requests
-import os
-from time import sleep
 import csv
+import os
+import re
 from datetime import datetime
+from time import sleep
+
+import lxml.html as le
+import requests
+from lxml import etree
 
 #evert website has two parts 
 #left and right denotes left and right part of the price 99.26 left-99 right-26
@@ -21,8 +22,9 @@ nameRe="\"nom\":\"(.*?)\","
 priceRe="\"prixPromo\":\"(.*?)\""
 
 headerName='-----NAME-------'
-#header price is now data as header in csv .
-headerPrice=str(datetime.date(datetime.now()))
+#header price is now date as header in csv file.
+#headerPrice=str(datetime.date(datetime.now()))
+headerPrice="05/20/2019"
 
 
 proxies ={"http":"http://10.135.0.26:8080/","https":"http://10.135.0.26:8080/"}
@@ -52,7 +54,8 @@ def scrapeSite1New():
     s=requests.session()
     html=s.get(url_dict['site_1_1_Url'],proxies=proxies).text
     tree=le.fromstring(html)
-    divs=tree.xpath("//div[@class='sc-gPWkxV hyBNKq']")
+    #divs=tree.xpath("//div[@class='sc-giadOv iKkWMi']")
+    divs=tree.xpath("//div[@class='sc-jKVCRD hBmMeA']/div")
     for div in divs:
         name=div.xpath(".//div[@class='markdown-p']")[0].text.strip()
         left=div.xpath(".//span[@class='sc-kAzzGY hqcLUv']")
@@ -87,10 +90,6 @@ def scrapeSite1New():
         dataList.append(data)
     print("1-2 Completed")
     
-        
-
-            
-        
         
 
 def scrapeSite1():
@@ -272,7 +271,6 @@ def init():
 
 def writeListToCsv(toCSV):
     oldData=[]
-    keys = toCSV[0].keys()
     fileName=currDir+"/data/data.csv"
     xists = os.path.isfile(fileName)
     if(xists):
@@ -286,33 +284,57 @@ def writeListToCsv(toCSV):
         if(len(toCSV)>len(oldData)):
             length=len(toCSV)
             for i in range(length):
-                try:
-                    old=oldData[i]
+                new=toCSV[i]
+                hn=new[headerName]
+                oldL=len(oldData)
+                flag=False
+                for j in range(oldL):
+                    old=oldData[j]
+                    if(old[headerName]==hn):
+                        flag=True
+                        for key,val in old.items():
+                            toCSV[i][key]=val
+                if(not flag):
+                    tempDict=dict()
+                    f=True
                     for key,val in old.items():
-                        dataList[i][key]=val
-                except Exception as e:
-                    print(e)
+                        if(key==headerName):
+                            tempDict[headerName]=hn
+                        else:
+                            tempDict[key]="0.0"
+                        if(f==True):
+                            tempDict[headerPrice]= new[headerPrice]
+                            f=False
+                    toCSV[i]=tempDict
+                        
         elif(len(toCSV)<len(oldData)):
             length=len(oldData)
             for i in range(length):
-                try:
-                    old=oldData[i]
-                    for key,val in old.items():
-                        dataList[i][key]=val
-                except Exception as e:
-                        dataList.append(old)
+                old=oldData[i]
+                hn=old[headerName]
+                newL=len(toCSV)
+                flag=False
+                for j in range(newL):
+                    new=toCSV[j]
+                    if(new[headerName]==hn):
+                        flag=True
+                        for key,val in old.items():
+                            toCSV[j][key]=val
+                if(not flag):
+                        old[headerPrice]="0.0"
+                        toCSV.append(old)
         else:
             length=len(toCSV)
             for i in range(length):
                 try:
                     old=oldData[i]
                     for key,val in old.items():
-                        dataList[i][key]=val
+                        toCSV[i][key]=val
                 except Exception as e:
                     print(e)
 
-        
-                
+    print(toCSV)   
+    keys = toCSV[0].keys()
     with open(fileName, 'w') as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
